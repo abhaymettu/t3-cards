@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<title>t3-cards</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: var(--color-background-secondary, #141414);
+  --fg: var(--color-text-primary, #f4f4f5);
+  --fg2: var(--color-text-secondary, #a1a1aa);
+  --line: var(--color-border-primary, rgba(255,255,255,.12));
+  --ring: var(--color-ring-primary, #8ab4ff);
+  --radius: 14px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --font: var(--font-sans, "Inter", -apple-system, system-ui, sans-serif);
+  --mono: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  --tap: 32px;
+}
+:root[data-theme="light"] {
+  --bg: var(--color-background-secondary, #ffffff);
+  --fg: var(--color-text-primary, #18181b);
+  --fg2: var(--color-text-secondary, #5b5b66);
+  --line: var(--color-border-primary, rgba(0,0,0,.12));
+}
+:root[data-touch] { --tap: 44px; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: transparent; }
+body { font: 14px/1.5 var(--font); color: var(--fg); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; }
+button { font: inherit; color: inherit; }
+.card {
+  position: relative;
+  background: color-mix(in oklab, var(--bg) 78%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px 16px;
+  overflow: hidden;
+}
+.head { display: flex; align-items: flex-start; gap: 10px; }
+.glyph { flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--fg2); }
+.title { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.meta { color: var(--fg2); font-size: 12.5px; line-height: 1.45; margin-top: 2px; overflow-wrap: anywhere; }
+.count { flex: none; color: var(--fg2); font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 1px; }
+.note { color: var(--fg2); font-size: 13px; margin-top: 8px; }
+.btn {
+  min-height: var(--tap); padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--fg) 7%, transparent); cursor: pointer; font-size: 13.5px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px; transition: transform 120ms var(--ease-out), background-color 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover { background: color-mix(in oklab, var(--fg) 12%, transparent); }
+.btn:active { transform: scale(0.97); }
+.btn:focus-visible, .slider:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+/* bar: the filled part is full ink, the track a faint tint, so it reads by lightness, and a number sits beside it */
+.bar { position: relative; height: 6px; border-radius: 999px; background: color-mix(in oklab, var(--fg) 12%, transparent); overflow: hidden; }
+.bar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--fg); transform-origin: left; }
+.barrow { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.barrow .bar { flex: 1; }
+.barrow b { font-weight: 500; font-size: 12.5px; color: var(--fg2); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+
+/* progress steps: state is shape + word */
+.steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 2px; }
+.step { display: grid; grid-template-columns: 18px 1fr auto; column-gap: 10px; align-items: start; padding: 5px 0; }
+.step svg { width: 18px; height: 18px; margin-top: 1px; }
+.step .lbl { overflow-wrap: anywhere; }
+.step .sn { grid-column: 2 / 4; color: var(--fg2); font-size: 12.5px; margin-top: 1px; overflow-wrap: anywhere; }
+.step .st { color: var(--fg2); font-size: 12px; margin-top: 2px; }
+.step[data-state="active"] .lbl { font-weight: 600; }
+.step[data-state="active"] .st { color: var(--fg); font-weight: 500; }
+.step[data-state="todo"] .lbl, .step[data-state="skipped"] .lbl { color: var(--fg2); }
+.step[data-state="skipped"] .lbl { text-decoration: line-through; }
+.step[data-state="blocked"] .st { color: var(--fg); font-weight: 600; }
+
+/* countdown */
+.clock { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; margin-top: 10px; }
+.clock small { font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--fg2); margin-left: 4px; }
+
+/* document preview */
+.preview { margin-top: 10px; color: var(--fg2); font-size: 13.5px; line-height: 1.5; max-height: calc(1.5em * 3); overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+.preview > * { margin: 0 0 .4em; font-size: inherit; font-weight: inherit; }
+.landing { margin-top: 10px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
+.landing b { font-weight: 600; }
+.receipts { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.receipts li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start; }
+.receipts svg { width: 16px; height: 16px; margin-top: 2px; }
+.receipts li span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* reader */
+.reader { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--color-background-primary, var(--bg)); z-index: 2; }
+:root[data-mode="inline"] .reader { position: relative; inset: auto; height: var(--reader-h, 520px); border: 1px solid var(--line); border-radius: var(--radius);
+  background: color-mix(in oklab, var(--bg) 92%, transparent); overflow: hidden; }
+.rhead { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 12px; border-bottom: 1px solid var(--line); }
+.rhead .rt { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rhead .pct { color: var(--fg2); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 3.6em; text-align: right; }
+.rbar { flex: none; height: 2px; background: color-mix(in oklab, var(--fg) 10%, transparent); }
+.rbar > i { display: block; height: 100%; background: var(--fg); transform-origin: left; transform: scaleX(0); }
+.rbody { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 18px 18px 48px; }
+.prose { max-width: 68ch; margin: 0 auto; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.prose h1 { font-size: 22px; line-height: 1.25; letter-spacing: -0.02em; margin: 0 0 .6em; }
+.prose h2 { font-size: 17.5px; line-height: 1.3; letter-spacing: -0.01em; margin: 1.6em 0 .5em; }
+.prose h3, .prose h4 { font-size: 15.5px; margin: 1.3em 0 .4em; }
+.prose p, .prose ul, .prose ol, .prose blockquote, .prose pre, .prose table { margin: 0 0 .9em; }
+.prose ul, .prose ol { padding-left: 1.3em; }
+.prose li { margin: .2em 0; }
+.prose code { font-family: var(--mono); font-size: .88em; padding: .1em .35em; border-radius: 5px; background: color-mix(in oklab, var(--fg) 9%, transparent); }
+.prose pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; overflow: auto;
+  background: color-mix(in oklab, var(--fg) 7%, transparent); }
+.prose pre code { padding: 0; background: none; font-size: inherit; }
+.prose blockquote { padding-left: 12px; border-left: 3px solid var(--line); color: var(--fg2); }
+.prose a { color: inherit; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--fg2); }
+.prose hr { border: 0; border-top: 1px solid var(--line); margin: 1.4em 0; }
+.prose table { border-collapse: collapse; font-size: 13.5px; display: block; overflow: auto; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+.prose img { display: none; }
+.prose .imgalt { color: var(--fg2); font-size: 13px; }
+
+/* compare */
+.stage { position: relative; margin-top: 12px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: ew-resize; background: color-mix(in oklab, var(--fg) 5%, transparent); }
+.stage { max-height: 440px; margin-left: auto; margin-right: auto; }
+.stage img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.stage .top { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--x, 50%)) 0 0); }
+.handle { position: absolute; top: 0; bottom: 0; left: var(--x, 50%); width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); pointer-events: none; }
+.handle::after { content: ""; position: absolute; top: 50%; left: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3); }
+.handle svg { position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; z-index: 1; color: #111; }
+.tag { position: absolute; top: 8px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(0,0,0,.72); color: #fff; pointer-events: none; }
+.tag.l { left: 8px; } .tag.r { right: 8px; }
+.slider { position: absolute; inset: 0; opacity: 0; }
+.empty { color: var(--fg2); font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 1ms !important; } }
+@media (prefers-contrast: more) { .card { background: var(--bg); } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<!--T3CARDS_PAYLOADS-->
+<script>
+"use strict";
+(() => {
+  const root = document.getElementById("root");
+  const doc = document.documentElement;
+  let ctx = {};
+  let data = null;
+  let tickTimer = 0;
+
+  // ---- MCP Apps: JSON-RPC over postMessage to the host (T3) ----
+  let nextId = 1;
+  const pending = new Map();
+  const post = (msg) => window.parent.postMessage({ jsonrpc: "2.0", ...msg }, "*");
+  const request = (method, params) => new Promise((resolve, reject) => {
+    const id = nextId++;
+    pending.set(id, { resolve, reject });
+    post({ id, method, params });
+  });
+  const notify = (method, params) => post({ method, params });
+  window.addEventListener("message", (event) => {
+    if (event.source !== window.parent) return;
+    const m = event.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id !== undefined && !m.method) {
+      const p = pending.get(m.id);
+      if (!p) return;
+      pending.delete(m.id);
+      m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result);
+      return;
+    }
+    if (m.method === "ui/notifications/tool-result") return onResult(m.params);
+    if (m.method === "ui/notifications/host-context-changed") return applyContext(m.params);
+    if (m.method === "ui/notifications/tool-cancelled") return renderMessage("Cancelled.");
+    if (m.id !== undefined) post({ id: m.id, result: {} }); // ui/resource-teardown and other host requests
+  });
+
+  function applyContext(next) {
+    if (!next) return;
+    ctx = { ...ctx, ...next };
+    if (ctx.theme) doc.dataset.theme = ctx.theme;
+    const vars = ctx.styles?.variables ?? {};
+    for (const [k, v] of Object.entries(vars)) if (typeof v === "string" && v) doc.style.setProperty(k, v);
+    if (ctx.deviceCapabilities?.touch) doc.dataset.touch = ""; else delete doc.dataset.touch;
+    doc.dataset.mode = ctx.displayMode ?? "inline";
+    if (data?.kind === "document" && readerOpen) layoutReader();
+  }
+
+  let lastH = 0;
+  const reportSize = () => {
+    if (doc.dataset.mode === "fullscreen") return;
+    const h = Math.ceil(root.getBoundingClientRect().height);
+    if (h && h !== lastH) { lastH = h; notify("ui/notifications/size-changed", { height: h }); }
+  };
+  new ResizeObserver(reportSize).observe(root);
+
+  const openLink = (url) => request("ui/open-link", { url }).catch(() => {});
+  const canFullscreen = () => (ctx.availableDisplayModes ?? []).includes("fullscreen");
+  const setMode = (mode) => request("ui/request-display-mode", { mode }).then((r) => {
+    doc.dataset.mode = r?.mode ?? doc.dataset.mode; return r?.mode;
+  }).catch(() => doc.dataset.mode);
+
+  // ---- tiny DOM helpers ----
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const h = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+  const ICON = {
+    doc: '<svg class="glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5.5 2.75h6l3.75 3.75v10a.75.75 0 0 1-.75.75h-9a.75.75 0 0 1-.75-.75V3.5a.75.75 0 0 1 .75-.75Z"/><path d="M11.25 2.75V6.5H15M7.5 10.5h5M7.5 13.5h5"/></svg>',
+    clock: '<svg class="glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10" cy="10.5" r="6.75"/><path d="M10 6.75v3.75l2.5 1.5M8 2.5h4"/></svg>',
+    steps: '<svg class="glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 5.5h2M3 10h2M3 14.5h2M8 5.5h9M8 10h9M8 14.5h6"/></svg>',
+    compare: '<svg class="glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="1.5"/><path d="M10 2.5v15"/></svg>',
+  };
+  // State glyphs: filled check, ring with centre dot, hollow ring, ring with bar, ring with dash. Words beside them.
+  const STATE = {
+    done: { word: "done", svg: '<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor"/><path d="M5.3 9.2l2.4 2.4 5-5.1" fill="none" stroke="var(--color-background-primary, #000)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+    active: { word: "now", svg: '<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9" r="3.5" fill="currentColor"/></svg>' },
+    todo: { word: "next", svg: '<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.6 2.4" opacity=".7"/></svg>' },
+    blocked: { word: "blocked", svg: '<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 1.5l7.5 13.25H1.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 6.5v4M9 12.6v.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' },
+    skipped: { word: "skipped", svg: '<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".7"/><path d="M5.5 9h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' },
+  };
+
+  // ---- markdown (escaped first; a small safe subset) ----
+  function inline(s) {
+    let out = esc(s);
+    const codes = [];
+    out = out.replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
+    out = out.replace(/!\[([^\]]*)\]\([^)]+\)/g, (_, alt) => `<span class="imgalt">[image${alt ? ": " + alt : ""}]</span>`);
+    out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, t, u) => `<a href="${u}" data-link="${u}">${t}</a>`);
+    out = out.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, t, a) => a ?? t);
+    out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, "$1<em>$2</em>").replace(/(^|\W)_([^_\n]+)_(?=\W|$)/g, "$1<em>$2</em>");
+    out = out.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, pre, u) => `${pre}<a href="${u}" data-link="${u}">${u}</a>`);
+    return out.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`);
+  }
+  function markdown(text) {
+    const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+    const out = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (/^```/.test(line)) {
+        const buf = []; i++;
+        while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+        i++; out.push(`<pre><code>${esc(buf.join("\n"))}</code></pre>`); continue;
+      }
+      if (/^\s*$/.test(line)) { i++; continue; }
+      let m;
+      if ((m = line.match(/^(#{1,6})\s+(.*)$/))) { const n = Math.min(m[1].length, 4); out.push(`<h${n}>${inline(m[2])}</h${n}>`); i++; continue; }
+      if (/^\s*([-*_])\s*(\1\s*){2,}$/.test(line)) { out.push("<hr>"); i++; continue; }
+      if (/^>/.test(line)) {
+        const buf = []; while (i < lines.length && /^>/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ""));
+        out.push(`<blockquote>${markdown(buf.join("\n"))}</blockquote>`); continue;
+      }
+      if (/^\|.*\|\s*$/.test(line) && /^\|?\s*:?-{2,}/.test(lines[i + 1] ?? "")) {
+        const row = (l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+        const head = row(line); i += 2;
+        const body = []; while (i < lines.length && /^\|.*\|\s*$/.test(lines[i])) body.push(row(lines[i++]));
+        out.push(`<table><thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`);
+        continue;
+      }
+      if ((m = line.match(/^(\s*)([-*+]|\d+[.)])\s+/))) {
+        const ordered = /\d/.test(m[2]);
+        const items = [];
+        while (i < lines.length && (m = lines[i].match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/))) {
+          let item = m[3]; i++;
+          while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !/^\s*([-*+]|\d+[.)])\s+/.test(lines[i])) item += " " + lines[i++].trim();
+          const sub = m[1].length >= 2;
+          items.push(`<li${sub ? ' style="margin-left:1.2em"' : ""}>${inline(item)}</li>`);
+        }
+        out.push(ordered ? `<ol>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`); continue;
+      }
+      const buf = [];
+      while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^(#{1,6}\s|```|>|\s*([-*+]|\d+[.)])\s+|\|.*\|\s*$)/.test(lines[i])) buf.push(lines[i++]);
+      if (!buf.length) buf.push(lines[i++]);
+      out.push(`<p>${buf.map((l) => inline(l.trim())).join(" ")}</p>`);
+    }
+    return out.join("");
+  }
+  root.addEventListener("click", (e) => {
+    const a = e.target.closest?.("[data-link]");
+    if (a) { e.preventDefault(); openLink(a.dataset.link); }
+  });
+
+  // ---- time words in the viewer's zone ----
+  const zone = () => ctx.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const fmtTime = (d, withDay) => new Intl.DateTimeFormat("en-US", { timeZone: zone(), hour: "numeric", minute: "2-digit", ...(withDay ? { weekday: "short", month: "short", day: "numeric" } : {}), timeZoneName: "short" }).format(d);
+  const sameDay = (a, b) => { const f = new Intl.DateTimeFormat("en-CA", { timeZone: zone() }); return f.format(a) === f.format(b); };
+  const ago = (iso) => {
+    const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 90) return "just now";
+    const m = Math.round(s / 60); if (m < 60) return `${m} min ago`;
+    const hr = Math.round(m / 60); if (hr < 36) return `${hr} h ago`;
+    return `${Math.round(hr / 24)} days ago`;
+  };
+
+  // ---- components ----
+  function renderMessage(text) { root.replaceChildren(h(`<div class="card"><div class="empty">${esc(text)}</div></div>`)); }
+
+  function renderProgress(d) {
+    const total = d.steps.length;
+    const done = d.steps.filter((s) => s.state === "done" || s.state === "skipped").length;
+    const blocked = d.steps.some((s) => s.state === "blocked");
+    const pct = Math.round((done / total) * 100);
+    const card = h(`<section class="card" aria-label="${esc(d.title)}">
+      <div class="head">${ICON.steps}<div class="title">${esc(d.title)}</div><div class="count">${done} of ${total}${blocked ? ", blocked" : ""}</div></div>
+      ${d.note ? `<div class="note">${esc(d.note)}</div>` : ""}
+      <div class="barrow"><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><i style="transform:scaleX(${done / total})"></i></div><b>${pct}%</b></div>
+      <ol class="steps">${d.steps.map((s) => {
+        const st = STATE[s.state] ?? STATE.todo;
+        return `<li class="step" data-state="${esc(s.state)}">${st.svg}<span class="lbl">${esc(s.label)}</span><span class="st">${st.word}</span>${s.note ? `<span class="sn">${esc(s.note)}</span>` : ""}</li>`;
+      }).join("")}</ol></section>`);
+    root.replaceChildren(card);
+  }
+
+  function renderCountdown(d) {
+    const until = new Date(d.until), since = new Date(d.since);
+    const card = h(`<section class="card" aria-label="${esc(d.label)}">
+      <div class="head">${ICON.clock}<div class="title">${esc(d.label)}</div></div>
+      <div class="clock" aria-live="off"></div>
+      <div class="meta when"></div>
+      <div class="barrow"><div class="bar"><i></i></div><b class="share"></b></div>
+      ${d.note ? `<div class="note">${esc(d.note)}</div>` : ""}</section>`);
+    root.replaceChildren(card);
+    const clock = card.querySelector(".clock"), when = card.querySelector(".when"), fill = card.querySelector(".bar > i"), share = card.querySelector(".share");
+    const pad = (n) => String(n).padStart(2, "0");
+    const tick = () => {
+      const now = Date.now();
+      const left = until.getTime() - now;
+      const span = Math.max(1, until.getTime() - since.getTime());
+      const gone = Math.min(1, Math.max(0, (now - since.getTime()) / span));
+      fill.style.transform = `scaleX(${gone})`;
+      share.textContent = left > 0 ? `${Math.round(gone * 100)}%` : "100%";
+      const at = fmtTime(until, !sameDay(until, new Date(now)));
+      if (left > 0) {
+        const s = Math.floor(left / 1000), dd = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+        clock.innerHTML = dd ? `${dd}<small>d</small> ${hh}<small>h</small> ${pad(mm)}<small>m</small>` : hh ? `${hh}:${pad(mm)}:${pad(ss)}` : `${mm}:${pad(ss)}`;
+        when.textContent = `left, until ${at}`;
+      } else {
+        clock.innerHTML = `${STATE.done.svg.replace("<svg", '<svg style="width:26px;height:26px;vertical-align:-3px;margin-right:8px"')}Time`;
+        when.textContent = `${at}, ${ago(until.toISOString())}`;
+        clearInterval(tickTimer);
+      }
+    };
+    clearInterval(tickTimer);
+    tick();
+    tickTimer = setInterval(tick, 1000);
+  }
+
+  function parseResult(md) {
+    const landing = md.match(/^Landing:\s*(.+)$/m)?.[1];
+    const verified = [];
+    const block = md.match(/^Verified:[^\n]*\n((?:\s*-\s.*\n?)+)/m)?.[1] ?? "";
+    for (const l of block.split("\n")) {
+      const m = l.match(/^\s*-\s+(.*)$/); if (!m) continue;
+      const unchecked = /^UNCHECKED:/i.test(m[1]);
+      verified.push({ ok: !unchecked, text: m[1].replace(/^UNCHECKED:\s*/i, "").split(" | ")[0] });
+    }
+    return { landing, verified };
+  }
+
+  let readerOpen = false;
+  function renderDocument(d) {
+    readerOpen = false;
+    const words = d.words ?? 0;
+    const mins = Math.max(1, Math.round(words / 230));
+    const r = parseResult(d.markdown);
+    const body = d.markdown.replace(/^#\s+.+\n+/, "");
+    const metaBits = [d.source, `${mins} min read`, d.modified ? `edited ${ago(d.modified)}` : ""].filter(Boolean);
+    const unchecked = r.verified.filter((v) => !v.ok).length;
+    const card = h(`<section class="card" aria-label="${esc(d.title)}">
+      <div class="head">${ICON.doc}<div style="flex:1;min-width:0"><div class="title">${esc(d.title)}</div><div class="meta">${metaBits.map(esc).join(" · ")}</div></div></div>
+      ${r.landing ? `<div class="landing"><b>Landing</b> ${inline(r.landing)}</div>` : ""}
+      ${r.verified.length ? `<ul class="receipts" aria-label="Verified: ${r.verified.length - unchecked} checked, ${unchecked} unchecked">${r.verified.slice(0, 4).map((v) => `<li>${(v.ok ? STATE.done : STATE.blocked).svg}<span>${v.ok ? "" : "<b>Unchecked:</b> "}${inline(v.text)}</span></li>`).join("")}${r.verified.length > 4 ? `<li><span></span><span class="meta">${r.verified.length - 4} more in the reader</span></li>` : ""}</ul>` : `<div class="preview">${markdown(body.split("\n").slice(0, 12).join("\n"))}</div>`}
+      <div class="actions"><button class="btn" data-act="read" aria-label="Read ${esc(d.title)}">Read</button></div></section>`);
+    root.replaceChildren(card);
+    card.querySelector('[data-act="read"]').addEventListener("click", () => openReader(d));
+  }
+
+  async function openReader(d) {
+    readerOpen = true;
+    const reader = h(`<section class="reader" role="document" aria-label="${esc(d.title)}">
+      <div class="rhead"><button class="btn" data-act="close">Close</button><div class="rt">${esc(d.title)}</div><div class="pct">0%</div></div>
+      <div class="rbar"><i></i></div>
+      <div class="rbody"><article class="prose"><h1>${esc(d.title)}</h1>${markdown(d.markdown.replace(/^#\s+.+\n+/, ""))}</article></div></section>`);
+    if (canFullscreen()) await setMode("fullscreen");
+    root.replaceChildren(reader);
+    layoutReader();
+    const bodyEl = reader.querySelector(".rbody"), fill = reader.querySelector(".rbar > i"), pct = reader.querySelector(".pct");
+    const onScroll = () => {
+      const max = bodyEl.scrollHeight - bodyEl.clientHeight;
+      const p = max <= 0 ? 1 : Math.min(1, bodyEl.scrollTop / max);
+      fill.style.transform = `scaleX(${p})`;
+      pct.textContent = `${Math.round(p * 100)}%`;
+    };
+    bodyEl.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    reader.querySelector('[data-act="close"]').addEventListener("click", async () => {
+      if (doc.dataset.mode === "fullscreen") await setMode("inline");
+      renderDocument(d);
+    });
+  }
+
+  function layoutReader() {
+    const max = ctx.containerDimensions?.maxHeight;
+    const h = Math.max(320, Math.min(max || 560, 640));
+    doc.style.setProperty("--reader-h", `${h}px`);
+  }
+
+  function renderCompare(d) {
+    const ratio = d.after.w && d.after.h ? d.after.w / d.after.h : 16 / 10;
+    const card = h(`<section class="card" aria-label="${esc(d.title ?? "Before and after")}">
+      <div class="head">${ICON.compare}<div style="flex:1;min-width:0"><div class="title">${esc(d.title ?? "Before and after")}</div><div class="meta">Drag to compare</div></div></div>
+      ${d.note ? `<div class="note">${esc(d.note)}</div>` : ""}
+      <div class="stage" style="aspect-ratio:${ratio};max-width:calc(440px * ${ratio})">
+        <img src="${d.after.src}" alt="After: ${esc(d.after.name)}">
+        <div class="top"><img src="${d.before.src}" alt="Before: ${esc(d.before.name)}"></div>
+        <span class="tag l">Before</span><span class="tag r">After</span>
+        <div class="handle"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4L2 8l4 4M10 4l4 4-4 4"/></svg></div>
+        <input class="slider" type="range" min="0" max="100" value="50" aria-label="Before and after split">
+      </div></section>`);
+    root.replaceChildren(card);
+    const stage = card.querySelector(".stage"), slider = card.querySelector(".slider");
+    const set = (p) => { p = Math.min(100, Math.max(0, p)); stage.style.setProperty("--x", `${p}%`); slider.value = String(Math.round(p)); };
+    const fromEvent = (e) => { const r = stage.getBoundingClientRect(); set(((e.clientX - r.left) / r.width) * 100); };
+    let dragging = false, startX = 0, startY = 0, decided = false;
+    stage.addEventListener("pointerdown", (e) => { dragging = true; decided = e.pointerType !== "touch"; startX = e.clientX; startY = e.clientY; if (decided) { stage.setPointerCapture(e.pointerId); fromEvent(e); } });
+    stage.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      if (!decided) {
+        const dx = Math.abs(e.clientX - startX), dy = Math.abs(e.clientY - startY);
+        if (dx < 6 && dy < 6) return;
+        if (dy > dx) { dragging = false; return; } // a vertical swipe scrolls the chat
+        decided = true; stage.setPointerCapture(e.pointerId);
+      }
+      fromEvent(e);
+    });
+    const end = (e) => { if (dragging && !decided && e.type === "pointerup") fromEvent(e); dragging = false; };
+    stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
+    slider.addEventListener("input", () => set(Number(slider.value)));
+    set(50);
+  }
+
+  function onResult(result) {
+    clearInterval(tickTimer);
+    let d = result?.structuredContent;
+    if (d?.id) {
+      let stored;
+      try { stored = JSON.parse(document.getElementById("payloads")?.textContent || "{}")[d.id]; } catch {}
+      if (stored) d = { ...d, ...stored };
+      else if ((d.kind === "document" && d.markdown === undefined) || (d.kind === "compare" && !d.before)) {
+        return renderMessage("This card's content was not captured. Ask for it again.");
+      }
+    }
+    if (result?.isError) return renderMessage(result.content?.map((c) => c.text).join(" ") || "The tool failed.");
+    if (!d || !d.kind) return renderMessage(result?.content?.map((c) => c.text).join(" ") || "Nothing to show.");
+    data = d;
+    try {
+      ({ progress: renderProgress, countdown: renderCountdown, document: renderDocument, compare: renderCompare })[d.kind]?.(d);
+    } catch (error) {
+      renderMessage(`Could not draw this card: ${error.message}`);
+    }
+  }
+
+  request("ui/initialize", {
+    protocolVersion: "2026-01-26",
+    appInfo: { name: "t3-cards", version: "0.1.0" },
+    appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+  }).then((r) => { applyContext(r?.hostContext); notify("ui/notifications/initialized", {}); })
+    .catch(() => notify("ui/notifications/initialized", {}));
+  window.__t3cards = { onResult, applyContext };
+})();
+</script>
+</body>
+</html>
